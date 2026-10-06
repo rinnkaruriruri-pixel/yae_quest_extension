@@ -1,0 +1,34 @@
+name: build-ja-quest-catalog
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [genshin-7.1]
+    paths:
+      - "tools/build_ja_quest_catalog.py"
+      - ".github/workflows/build-ja-quest-catalog.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Genshin 7.1 data
+        run: |
+          mkdir -p _data
+          base="https://gitlab.com/Dimbreath/animegamedata2/-/raw/main"
+          curl -fL --retry 3 "$base/TextMap/TextMapJP.json" -o _data/TextMapJP.json
+          curl -fL --retry 3 "$base/ExcelBinOutput/MainQuestExcelConfigData.json" -o _data/MainQuestExcelConfigData.json
+          curl -fL --retry 3 "$base/ExcelBinOutput/QuestExcelConfigData.json" -o _data/QuestExcelConfigData.json
+      - name: Build Japanese quest catalog
+        run: |
+          python tools/build_ja_quest_catalog.py \
+            _data/TextMapJP.json \
+            _data/MainQuestExcelConfigData.json \
+            _data/QuestExcelConfigData.json \
+            quest_catalog_ja_7.1.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quest_catalog_ja_7.1
+          path: quest_catalog_ja_7.1.json
+          retention-days: 90
