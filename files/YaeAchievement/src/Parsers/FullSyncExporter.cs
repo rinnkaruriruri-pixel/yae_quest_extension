@@ -18,6 +18,7 @@ namespace YaeAchievement.Parsers;
 /// </summary>
 public static class FullSyncExporter {
 
+    // Local build target: Genshin 7.1
     public const uint QuestListCmd = 7638;   // QuestListNotify (Genshin 7.1)
     public const uint ParentCmd = 3062;     // FinishedParentQuestNotify (Genshin 7.1)
 
