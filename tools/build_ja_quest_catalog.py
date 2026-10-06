@@ -50,7 +50,7 @@ for x in quest:
     pid=pick(x,["mainId","mainQuestId","parentQuestId"])
     if qid is None:
         continue
-    desc_hash=pick(x,["descTextMapHash","titleTextMapHash","nameTextMapHash"])
+    desc_hash=pick(x,["stepDescTextMapHash","descTextMapHash","titleTextMapHash","nameTextMapHash"])
     children.append({
         "quest_id": int(qid),
         "parent_quest_id": int(pid) if pid is not None else None,
