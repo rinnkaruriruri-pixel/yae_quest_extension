@@ -7,9 +7,9 @@ using Spectre.Console;
 namespace YaeAchievement.Parsers;
 
 /// <summary>
-/// 全量同步任务导出器 (v7.0.0 实测字段号, 见 tools/parse_full_sync.py):
-///   cmd 2516  QuestListNotify            -> 任务簿 (子任务状态; start_time=4, accept_time=9)
-///   cmd 23849 FinishedParentQuestNotify  -> 父任务完成历史 (成员关系=完成; 无完成时间戳, accept_time=2)
+/// 全量同步任务导出器 (v7.1.0 対応フィールド):
+///   cmd 7638  QuestListNotify            -> 任务簿 (子任务状态; start_time=4, accept_time=9)
+///   cmd 3062 FinishedParentQuestNotify  -> 父任务完成历史 (成员关系=完成; 无完成时间戳, accept_time=15)
 ///
 /// 仅处理任务包 (纯增量, 不碰 Yae 原生成就/背包流)。Utils.cs 把任务包喂给 AddPacket, 结束后 Export 导出:
 ///   uigf_quest_record_v1_<时间>.json   UIGF Quest Record v1.1 (默认, 纯数据)
@@ -18,8 +18,8 @@ namespace YaeAchievement.Parsers;
 /// </summary>
 public static class FullSyncExporter {
 
-    public const uint QuestListCmd = 2516;   // QuestListNotify
-    public const uint ParentCmd = 23849;     // FinishedParentQuestNotify
+    public const uint QuestListCmd = 7638;   // QuestListNotify (Genshin 7.1)
+    public const uint ParentCmd = 3062;     // FinishedParentQuestNotify (Genshin 7.1)
 
     /// <summary>是否额外导出 full_sync_*.json (--full-sync)。</summary>
     public static bool EmitFullSync { get; set; }
@@ -73,7 +73,7 @@ public static class FullSyncExporter {
                 if (q != null) Quests[q.QuestId] = q;
             }
         } else if (cmdId == ParentCmd) {
-            foreach (var ld in ProtoWalker.Walk(payload).GetLD(12)) {
+            foreach (var ld in ProtoWalker.Walk(payload).GetLD(4)) {
                 var p = ParseParent(ld.Data);
                 if (p != null) Parents[p.ParentQuestId] = p;
             }
@@ -116,16 +116,16 @@ public static class FullSyncExporter {
             StartTime = f.GetFirstVarint(4) ?? 0,   // start_time=字段4 (官方/LunaGC 约定)
             AcceptTime = f.GetFirstVarint(9) ?? 0,  // accept_time=字段9 (入册即记, 未接取任务也有)
             ParentQuestId = f.GetFirstVarint(6) ?? 0,
-            FinishProgress = f.GetFirstVarint(11) ?? 0,
+            FinishProgress = f.GetPackedList(10).FirstOrDefault(),
         };
     }
 
     private static SyncParent? ParseParent(ReadOnlySpan<byte> data) {
         var f = ProtoWalker.Walk(data);
-        var pid = f.GetFirstVarint(12);
+        var pid = f.GetFirstVarint(14);
         if (pid == null) return null;
-        // ParentQuest 无 finish_time 字段; 字段2 是 accept_time (官方 7.0.0 proto + LunaGC 双确认)
-        return new SyncParent { ParentQuestId = pid.Value, AcceptTime = f.GetFirstVarint(2) ?? 0 };
+        // ParentQuest 无 finish_time 字段; Genshin 7.1: parent_quest_id=14, accept_time=15
+        return new SyncParent { ParentQuestId = pid.Value, AcceptTime = f.GetFirstVarint(15) ?? 0 };
     }
 
     /// <summary>导出 UIGF Quest Record v1.1 (纯数据: 完成历史 + 任务簿, 展示由消费端解析)。</summary>
@@ -322,7 +322,7 @@ public sealed class SyncQuest {
 
 public sealed class SyncParent {
     public ulong ParentQuestId { get; set; }
-    /// <summary>父任务接取时间 (ParentQuest.accept_time=字段2)。完成时间协议不提供。</summary>
+    /// <summary>父任务接取时间 (Genshin 7.1 ParentQuest.accept_time=字段15)。完成时间协议不提供。</summary>
     public ulong AcceptTime { get; set; }
 }
 
